@@ -6,6 +6,7 @@ public interface AppConstants {
 	String GAME_FOUND = "Games found";
 	String ACTIVE = "ACTIVE";
 	String JOINED = "JOINED";
+	String LEFT = "LEFT";
 	String CANCELLED_HOST = "CANCELLED-HOST";
 	String SUCCESS = "SUCCESS";
 	String CANCELLED_BY_PLAYER = "CANCELLED_BY_PLAYER";

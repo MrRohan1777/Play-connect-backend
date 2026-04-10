@@ -1,26 +1,21 @@
 package com.playConnect.game.service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.playConnect.game.dto.CreateGameRequest;
-import com.playConnect.game.dto.JoinedGameResponse;
-import com.playConnect.game.dto.MyGameItemResponse;
-import com.playConnect.game.dto.MyGameResponse;
-import com.playConnect.game.dto.NearbyGamesResponse;
-import com.playConnect.game.dto.ParticipateGameRequest;
-import com.playConnect.game.dto.RemovePlayerRequest;
+import com.playConnect.game.dto.GameListItemResponse;
+import com.playConnect.game.dto.GameListResponse;
 import com.playConnect.game.entity.Game;
 import com.playConnect.game.entity.GameParticipation;
 import com.playConnect.game.repository.GameParticipationRepository;
 import com.playConnect.game.repository.GameRepository;
-import com.playConnect.mapper.UserMapper;
 import com.playConnect.security.securityConfig.JwtUtil;
 import com.playConnect.utilities.AppConstants;
 
@@ -29,12 +24,6 @@ import jakarta.transaction.Transactional;
 @Service
 public class GameService {
 
-	/** Active games first, then by scheduled date and time. */
-	private static final Comparator<Game> ACTIVE_FIRST_THEN_SCHEDULE = Comparator
-			.comparing((Game g) -> !AppConstants.ACTIVE.equalsIgnoreCase(g.getStatus()))
-			.thenComparing(Game::getDate, Comparator.nullsLast(Comparator.naturalOrder()))
-			.thenComparing(Game::getTime, Comparator.nullsLast(Comparator.naturalOrder()));
-
 	@Autowired
 	private GameRepository gameRepository;
 	@Autowired
@@ -42,272 +31,155 @@ public class GameService {
 	@Autowired
 	private GameParticipationRepository gameParticipationRepository;
 
-	public Game hostGame(String token, CreateGameRequest request) {
-
-		if (request.getRemainingSpots() > request.getTotalPlayers()) {
-			throw new RuntimeException("Remaining spots cannot be greater than total players");
+	public Game createGame(String token, CreateGameRequest request) {
+		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
+		if (request.getTotalPlayers() == null || request.getTotalPlayers() <= 0) {
+			throw new RuntimeException("totalPlayers must be greater than 0");
+		}
+		LocalDateTime startTime = LocalDateTime.of(request.getDate(), request.getTime());
+		if (!startTime.isAfter(LocalDateTime.now())) {
+			throw new RuntimeException("Cannot create a game in the past");
 		}
 
-		if (request.getRemainingSpots() < 0) {
-			throw new RuntimeException("Remaining spots cannot be negative");
-		}
-		String cleanToken = token.replace("Bearer ", "");
-		Long userId = jwtUtil.extractUserId(cleanToken);
-		Game game = UserMapper.INSTANCE.gameDtoToEntity(request);
+		Game game = new Game();
 		game.setHostId(userId);
+		game.setSport(request.getSport());
+		game.setArenaId(request.getArenaId());
+		game.setLatitude(request.getLatitude());
+		game.setLongitude(request.getLongitude());
+		game.setDate(request.getDate());
+		game.setTime(request.getTime());
+		game.setTotalPlayers(request.getTotalPlayers());
+		game.setRemainingSpots(request.getTotalPlayers());
+		game.setContactNumber(request.getContactNumber());
+		game.setEmail(request.getEmail());
+		game.setCancelBeforeMinutes(request.getCancelBeforeMinutes());
 		game.setStatus(AppConstants.ACTIVE);
-
 		return gameRepository.save(game);
 	}
 
-	public NearbyGamesResponse getNearbyGames(String sport, double lat, double lng, double radius) {
+	public GameListResponse getNearbyGames(double lat, double lng, double radius, String sport) {
+		List<GameListItemResponse> games = fetchAndFilterGames(lat, lng, radius, sport);
+		games.sort(Comparator.comparing(GameListItemResponse::getDistanceKm));
+		return new GameListResponse(games);
+	}
 
-		List<Object[]> results = gameRepository.findNearbyGames(sport, lat, lng, radius);
+	public GameListResponse getGamesByArena(Long arenaId) {
+		List<Game> games = gameRepository.findUpcomingActiveGamesByArenaId(arenaId);
+		Map<Long, Long> joinedCounts = getJoinedCountMap(games);
+		List<GameListItemResponse> items = games.stream()
+				.map(game -> {
+					long joined = joinedCounts.getOrDefault(game.getId(), 0L);
+					int slotsLeft = game.getTotalPlayers() - (int) joined;
+					double fillRatio = game.getTotalPlayers() == 0 ? 0.0 : (double) joined / game.getTotalPlayers();
+					return new GameListItemResponse(game, 0.0, slotsLeft, fillRatio);
+				})
+				.filter(item -> item.getSlotsLeft() > 0)
+				.sorted(Comparator.comparing(GameListItemResponse::getCreatedAt))
+				.toList();
+		return new GameListResponse(items);
+	}
 
-		List<Game> games = results.stream().map(row -> {
-			Game game = (Game) row[0];
-			double distance = ((Number) row[1]).doubleValue();
-			distance = Math.round(distance * 100.0) / 100.0;
-			String distanceString = String.valueOf(distance) + AppConstants.KILOMETER;
-			game.setDistance(distanceString);
-			return game;
-		}).collect(Collectors.toList());
-
-		if (games.isEmpty()) {
-			return new NearbyGamesResponse("No games found within " + radius + " km. Try increasing radius.", games);
-		}
-
-		return new NearbyGamesResponse("" + AppConstants.GAME_FOUND, games);
-
+	public GameListResponse getFillingFastGames(double lat, double lng, double radius) {
+		List<GameListItemResponse> games = fetchAndFilterGames(lat, lng, radius, null);
+		games.sort(Comparator.comparing(GameListItemResponse::getFillRatio).reversed()
+				.thenComparing(GameListItemResponse::getDistanceKm));
+		return new GameListResponse(games);
 	}
 
 	@Transactional
-	public Long joinGame(Long gameId, ParticipateGameRequest request, String token) {
-
-		Long userId = jwtUtil.extractUserId(token);
-
+	public Long joinGame(Long gameId, String token) {
+		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
 		Game game = gameRepository.findById(gameId).orElseThrow(() -> new RuntimeException("Game not found"));
-
-		if (!AppConstants.ACTIVE.equalsIgnoreCase(game.getStatus())) {
-			throw new RuntimeException("Game is not active");
+		if (!isUpcomingGame(game)) {
+			throw new RuntimeException("Cannot join past games");
 		}
-
-		if (request.getPlayersCount() <= 0) {
-			throw new RuntimeException("Players count must be greater than zero");
+		if (game.getHostId().equals(userId)) {
+			throw new RuntimeException("Host cannot join their own game");
 		}
-
-		if (request.getPlayersCount() > game.getRemainingSpots()) {
-			throw new RuntimeException("Not enough spots available");
+		if (gameParticipationRepository.existsByGameIdAndLeaderIdAndStatus(gameId, userId, AppConstants.JOINED)) {
+			throw new RuntimeException("Cannot join the same game twice");
 		}
-
-		if (gameParticipationRepository.existsByLeaderIdAndStatus(userId, AppConstants.JOINED)) {
-			throw new RuntimeException("You are already participating in another game");
+		long joinedCount = gameParticipationRepository.countByGameIdAndStatus(gameId, AppConstants.JOINED);
+		int slotsLeft = game.getTotalPlayers() - (int) joinedCount;
+		if (slotsLeft <= 0) {
+			throw new RuntimeException("Game is full");
 		}
-
-		boolean alreadyJoined = gameParticipationRepository
-				.findByGameIdAndLeaderEmailAndStatus(gameId, request.getLeaderEmail(), AppConstants.JOINED).isPresent();
-
-		if (alreadyJoined) {
-			throw new RuntimeException("You already joined this game");
-		}
-
-		// update remaining spots
-		game.setRemainingSpots(game.getRemainingSpots() - request.getPlayersCount());
-
-		gameRepository.save(game);
-
-		// save join record
 		GameParticipation join = new GameParticipation();
-
 		join.setGameId(gameId);
-		join.setLeaderEmail(request.getLeaderEmail());
-		join.setLeaderPhone(request.getLeaderPhone());
-		join.setPlayersCount(request.getPlayersCount());
-		join.setStatus(AppConstants.JOINED);
 		join.setLeaderId(userId);
-
+		join.setPlayersCount(1);
+		join.setStatus(AppConstants.JOINED);
 		GameParticipation saved = gameParticipationRepository.save(join);
-		// here call async method for notification Host
-
 		return saved.getId();
 	}
 
 	@Transactional
-	public String cancelGame(Long gameId, String token, RemovePlayerRequest request) {
-
-		Long userId = jwtUtil.extractUserId(token);
-		Game game = gameRepository.findById(gameId).orElseThrow(() -> new RuntimeException("Game not found"));
-
-		if (!game.getHostId().equals(userId)) {
-			throw new RuntimeException("Only host can cancel this game");
-		}
-
-		if (!AppConstants.ACTIVE.equals(game.getStatus())) {
-			throw new RuntimeException("Game already cancelled or completed");
-		}
-
-		game.setStatus(AppConstants.CANCELLED_HOST);
-		game.setHostCancelReason(request.getReason());
-
-		gameRepository.save(game);
-		// here call async method for notification All playes
-
-		return "Game cancelled successfully";
-	}
-
-	@Transactional
-	public String leaveGame(Long participationId, String token, RemovePlayerRequest request) {
-
-		Long userId = jwtUtil.extractUserId(token);
-		GameParticipation participation = gameParticipationRepository.findById(participationId)
-				.orElseThrow(() -> new RuntimeException("Participation not found"));
-
-		if (!participation.getLeaderId().equals(userId)) {
-			throw new RuntimeException("You are not allowed to leave this game");
-		}
-
-		if (!AppConstants.JOINED.equals(participation.getStatus())) {
-			throw new RuntimeException("Participation already cancelled");
-		}
-
-		Game game = gameRepository.findById(participation.getGameId())
-				.orElseThrow(() -> new RuntimeException("Game not found"));
-
-		// cancel window validation
-		LocalDateTime gameStartTime = LocalDateTime.of(game.getDate(), game.getTime());
-
-		LocalDateTime cancelDeadline = gameStartTime.minusMinutes(game.getCancelBeforeMinutes());
-
-		if (LocalDateTime.now().isAfter(cancelDeadline)) {
-			throw new RuntimeException("Cancellation window closed");
-		}
-
-		// update participation
-		participation.setStatus(AppConstants.CANCELLED_BY_PLAYER);
-		participation.setRemovalReason(request.getReason());
-
-		// restore spots
-		game.setRemainingSpots(game.getRemainingSpots() + participation.getPlayersCount());
-
+	public void leaveGame(Long gameId, String token) {
+		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
+		GameParticipation participation = gameParticipationRepository
+				.findByGameIdAndLeaderIdAndStatus(gameId, userId, AppConstants.JOINED)
+				.orElseThrow(() -> new RuntimeException("Join record not found"));
+		participation.setStatus(AppConstants.LEFT);
 		gameParticipationRepository.save(participation);
-		gameRepository.save(game);
-		// here call async method for notification to host for cancelation.
-
-		return "You have successfully left the game";
 	}
 
-	@Transactional
-	public String removePlayer(Long gameId, Long participationId, String token, RemovePlayerRequest request) {
+	private List<GameListItemResponse> fetchAndFilterGames(double lat, double lng, double radius, String sport) {
+		List<Game> upcomingGames = gameRepository.findUpcomingActiveGames();
+		Map<Long, Long> joinedCounts = getJoinedCountMap(upcomingGames);
+		return upcomingGames.stream()
+				.filter(game -> sport == null || sport.isBlank() || sport.equalsIgnoreCase(game.getSport()))
+				.map(game -> toListItem(game, lat, lng, joinedCounts.getOrDefault(game.getId(), 0L)))
+				.filter(item -> item.getDistanceKm() <= radius && item.getSlotsLeft() > 0)
+				.toList();
+	}
 
-		Long userId = jwtUtil.extractUserId(token);
-
-		Game game = gameRepository.findById(gameId).orElseThrow(() -> new RuntimeException("Game not found"));
-
-		if (!game.getHostId().equals(userId)) {
-			throw new RuntimeException("Only host can remove players");
+	private Map<Long, Long> getJoinedCountMap(List<Game> games) {
+		Map<Long, Long> joinedCounts = new HashMap<>();
+		if (games.isEmpty()) {
+			return joinedCounts;
 		}
-
-		GameParticipation participation = gameParticipationRepository.findById(participationId)
-				.orElseThrow(() -> new RuntimeException("Participation not found"));
-
-		if (!participation.getGameId().equals(gameId)) {
-			throw new RuntimeException("Participation does not belong to this game");
+		List<Long> gameIds = games.stream().map(Game::getId).toList();
+		for (Object[] row : gameParticipationRepository.countJoinedByGameIds(gameIds, AppConstants.JOINED)) {
+			joinedCounts.put((Long) row[0], (Long) row[1]);
 		}
+		return joinedCounts;
+	}
 
-		if (!AppConstants.JOINED.equals(participation.getStatus())) {
-			throw new RuntimeException("Player already removed or cancelled");
+	private GameListItemResponse toListItem(Game game, double lat, double lng, long joinedCount) {
+		int slotsLeft = game.getTotalPlayers() - (int) joinedCount;
+		double distance = round2(haversine(lat, lng, game.getLatitude(), game.getLongitude()));
+		double fillRatio = game.getTotalPlayers() == 0 ? 0.0 : (double) joinedCount / game.getTotalPlayers();
+		return new GameListItemResponse(game, distance, slotsLeft, fillRatio);
+	}
+
+	private boolean isUpcomingGame(Game game) {
+		return AppConstants.ACTIVE.equalsIgnoreCase(game.getStatus())
+				&& LocalDateTime.of(game.getDate(), game.getTime()).isAfter(LocalDateTime.now());
+	}
+
+	private String extractBearerToken(String token) {
+		if (token == null || token.isBlank()) {
+			throw new RuntimeException("Missing authorization token");
 		}
-
-		participation.setStatus(AppConstants.REMOVED_BY_HOST);
-		System.out.println("Reason : " + request.getReason());
-		participation.setRemovalReason(request.getReason());
-
-		game.setRemainingSpots(game.getRemainingSpots() + participation.getPlayersCount());
-
-		gameParticipationRepository.save(participation);
-		gameRepository.save(game);
-		// here call async method for notification to host for kiking out.
-
-		return "Player removed successfully";
-	}
-
-	private void sortMyGameItemsActiveFirst(List<MyGameItemResponse> list) {
-		list.sort(Comparator.comparing(MyGameItemResponse::getGame, ACTIVE_FIRST_THEN_SCHEDULE));
-	}
-
-	private void sortJoinedGamesActiveFirst(List<JoinedGameResponse> list) {
-		list.sort(Comparator.comparing(JoinedGameResponse::getGame, ACTIVE_FIRST_THEN_SCHEDULE));
-	}
-
-	public List<MyGameItemResponse> getHostedGamesByUserId(Long userId) {
-		List<MyGameItemResponse> list = new ArrayList<>();
-		for (Game game : gameRepository.findByHostId(userId)) {
-			list.add(new MyGameItemResponse(
-					game,
-					true,
-					null,
-					game.getHostCancelReason(),
-					userId,
-					null));
+		if (token.startsWith("Bearer ")) {
+			return token.substring(7);
 		}
-		sortMyGameItemsActiveFirst(list);
-		return list;
+		return token;
 	}
 
-	public List<JoinedGameResponse> getJoinedGamesByUserId(Long userId) {
-		List<GameParticipation> participations = gameParticipationRepository.findByLeaderId(userId);
-		List<JoinedGameResponse> response = new ArrayList<>();
-		for (GameParticipation p : participations) {
-			Game game = gameRepository.findById(p.getGameId()).orElse(null);
-			if (game == null) {
-				continue;
-			}
-			response.add(new JoinedGameResponse(
-					game,
-					p.getId(),
-					p.getStatus(),
-					p.getRemovalReason(),
-					p.getPlayersCount()));
-		}
-		sortJoinedGamesActiveFirst(response);
-		return response;
+	private double haversine(double lat1, double lon1, double lat2, double lon2) {
+		final double earthRadiusKm = 6371.0;
+		double dLat = Math.toRadians(lat2 - lat1);
+		double dLon = Math.toRadians(lon2 - lon1);
+		double a = Math.pow(Math.sin(dLat / 2), 2)
+				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+						* Math.pow(Math.sin(dLon / 2), 2);
+		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+		return earthRadiusKm * c;
 	}
 
-	public MyGameResponse getMyGames(String token) {
-
-		Long userId = jwtUtil.extractUserId(token);
-		
-	    List<MyGameItemResponse> responseList = new ArrayList<>(getHostedGamesByUserId(userId));
-
-	    //  Participated games
-	    List<GameParticipation> participations =
-	    		gameParticipationRepository.findByLeaderId(userId);
-
-	    for (GameParticipation participation : participations) {
-
-	        Game game = gameRepository.findById(participation.getGameId())
-	                .orElse(null);
-
-	        if (game == null) continue;
-
-	        MyGameItemResponse item = new MyGameItemResponse(
-	                game,
-	                false,
-	                participation.getStatus(),
-	                participation.getRemovalReason(),
-	                userId,
-	                participation.getId()
-	        );
-
-	        responseList.add(item);
-	    }
-	    sortMyGameItemsActiveFirst(responseList);
-	    // NOTE : If user is participatnt then only have removal reason if user is Host  
-	    return new MyGameResponse(responseList);
-	}
-	
-	public List<JoinedGameResponse> getJoinedGames(String token) {
-		Long userId = jwtUtil.extractUserId(token);
-		return getJoinedGamesByUserId(userId);
+	private double round2(double value) {
+		return Math.round(value * 100.0d) / 100.0d;
 	}
 }

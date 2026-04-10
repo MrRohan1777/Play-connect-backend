@@ -9,10 +9,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "Game_Participation")
+@Table(name = "Game_Participation", indexes = {
+		@Index(name = "idx_game_players_game_id", columnList = "gameId"),
+		@Index(name = "idx_game_players_game_status", columnList = "gameId,status")
+})
 public class GameParticipation {
 
 	@Id

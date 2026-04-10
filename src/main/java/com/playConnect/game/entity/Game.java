@@ -11,9 +11,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
 @Entity
+@Table(indexes = {
+		@Index(name = "idx_games_sport", columnList = "sport"),
+		@Index(name = "idx_games_start", columnList = "date,time"),
+		@Index(name = "idx_games_arena_id", columnList = "arenaId")
+})
 public class Game {
 
     @Id
@@ -21,6 +28,8 @@ public class Game {
     private Long id;
 
     private Long hostId;
+
+    private Long arenaId;
 
     private String sport;
 
@@ -65,6 +74,14 @@ public class Game {
 
 	public void setHostId(Long hostId) {
 		this.hostId = hostId;
+	}
+
+	public Long getArenaId() {
+		return arenaId;
+	}
+
+	public void setArenaId(Long arenaId) {
+		this.arenaId = arenaId;
 	}
 
 	public String getSport() {

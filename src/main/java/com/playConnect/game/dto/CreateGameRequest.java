@@ -6,6 +6,8 @@ import java.time.LocalTime;
 public class CreateGameRequest {
 
     private String sport;
+    
+    private Long arenaId;
 
     private Double latitude;
 
@@ -31,6 +33,14 @@ public class CreateGameRequest {
 
 	public void setSport(String sport) {
 		this.sport = sport;
+	}
+
+	public Long getArenaId() {
+		return arenaId;
+	}
+
+	public void setArenaId(Long arenaId) {
+		this.arenaId = arenaId;
 	}
 
 	public Double getLatitude() {
