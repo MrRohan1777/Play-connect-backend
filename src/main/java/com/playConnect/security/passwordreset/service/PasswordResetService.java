@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.playConnect.exception.BadRequestException;
+import com.playConnect.exception.ConflictException;
+import com.playConnect.exception.ResourceNotFoundException;
 import com.playConnect.security.passwordreset.entity.PasswordResetToken;
 import com.playConnect.security.passwordreset.repository.PasswordResetTokenRepository;
 import com.playConnect.user.entity.User;
@@ -101,14 +104,14 @@ public class PasswordResetService {
   @Transactional
   public void resetPassword(String token, String newPassword) {
     PasswordResetToken resetToken = tokenRepository.findByToken(token)
-        .orElseThrow(() -> new RuntimeException("Invalid reset token"));
+        .orElseThrow(() -> new ResourceNotFoundException("Invalid reset token"));
 
     if (resetToken.isUsed()) {
-      throw new RuntimeException("Reset token already used");
+      throw new ConflictException("Reset token already used");
     }
 
     if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-      throw new RuntimeException("Reset token expired");
+      throw new BadRequestException("Reset token expired");
     }
 
     User user = resetToken.getUser();

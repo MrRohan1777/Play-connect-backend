@@ -1,31 +1,26 @@
 package com.playConnect.game.dto;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 public class CreateGameRequest {
 
-    private String sport;
-    
-    private Long arenaId;
+	private String sport;
 
-    private Double latitude;
+	private Long arenaId;
 
-    private Double longitude;
+	private Double latitude;
 
-    private LocalDate date;
+	private Double longitude;
 
-    private LocalTime time;
+	private LocalDateTime startTime;
 
-    private Integer totalPlayers;
+	private Integer totalPlayers;
 
-    private Integer remainingSpots;
+	private String contactNumber;
 
-    private String contactNumber;
+	private String email;
 
-    private String email;
-    
-    private Integer cancelBeforeMinutes;
+	private Integer cancelBeforeMinutes;
 
 	public String getSport() {
 		return sport;
@@ -59,20 +54,12 @@ public class CreateGameRequest {
 		this.longitude = longitude;
 	}
 
-	public LocalDate getDate() {
-		return date;
+	public LocalDateTime getStartTime() {
+		return startTime;
 	}
 
-	public void setDate(LocalDate date) {
-		this.date = date;
-	}
-
-	public LocalTime getTime() {
-		return time;
-	}
-
-	public void setTime(LocalTime time) {
-		this.time = time;
+	public void setStartTime(LocalDateTime startTime) {
+		this.startTime = startTime;
 	}
 
 	public Integer getTotalPlayers() {
@@ -81,14 +68,6 @@ public class CreateGameRequest {
 
 	public void setTotalPlayers(Integer totalPlayers) {
 		this.totalPlayers = totalPlayers;
-	}
-
-	public Integer getRemainingSpots() {
-		return remainingSpots;
-	}
-
-	public void setRemainingSpots(Integer remainingSpots) {
-		this.remainingSpots = remainingSpots;
 	}
 
 	public String getContactNumber() {
@@ -114,7 +93,4 @@ public class CreateGameRequest {
 	public void setCancelBeforeMinutes(Integer cancelBeforeMinutes) {
 		this.cancelBeforeMinutes = cancelBeforeMinutes;
 	}
-
-	
-    
 }

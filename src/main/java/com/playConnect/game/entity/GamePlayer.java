@@ -5,39 +5,47 @@ import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.playConnect.user.entity.User;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "Game_Participation", indexes = {
+@Table(name = "game_players", indexes = {
 		@Index(name = "idx_game_players_game_id", columnList = "gameId"),
+		@Index(name = "idx_game_players_user_id", columnList = "user_id"),
 		@Index(name = "idx_game_players_game_status", columnList = "gameId,status")
 })
-public class GameParticipation {
+public class GamePlayer {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long id;
 
+	@Column(name = "game_id", nullable = false)
 	private Long gameId;
-	
-	private Long leaderId;
 
-	private String leaderEmail;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
-	private String leaderPhone;
+	@Column(nullable = false)
+	private String status;
+
+	private String removalReason;
 
 	private Integer playersCount;
 
-	private String status;
-	
-	private String removalReason;
-
-	private LocalDateTime createdAt = LocalDateTime.now();
+	@Column(name = "joined_at", nullable = false)
+	private LocalDateTime joinedAt = LocalDateTime.now();
 
 	public Long getId() {
 		return id;
@@ -55,28 +63,12 @@ public class GameParticipation {
 		this.gameId = gameId;
 	}
 
-	public String getLeaderEmail() {
-		return leaderEmail;
+	public User getUser() {
+		return user;
 	}
 
-	public void setLeaderEmail(String leaderEmail) {
-		this.leaderEmail = leaderEmail;
-	}
-
-	public String getLeaderPhone() {
-		return leaderPhone;
-	}
-
-	public void setLeaderPhone(String leaderPhone) {
-		this.leaderPhone = leaderPhone;
-	}
-
-	public Integer getPlayersCount() {
-		return playersCount;
-	}
-
-	public void setPlayersCount(Integer playersCount) {
-		this.playersCount = playersCount;
+	public void setUser(User user) {
+		this.user = user;
 	}
 
 	public String getStatus() {
@@ -87,9 +79,6 @@ public class GameParticipation {
 		this.status = status;
 	}
 
-	/**
-	 * Expose participation status in JSON as `participationStatus` (not `status`).
-	 */
 	@JsonProperty("participationStatus")
 	public String getParticipationStatus() {
 		return status;
@@ -105,22 +94,6 @@ public class GameParticipation {
 		return status;
 	}
 
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Long getLeaderId() {
-		return leaderId;
-	}
-
-	public void setLeaderId(Long leaderId) {
-		this.leaderId = leaderId;
-	}
-
 	public String getRemovalReason() {
 		return removalReason;
 	}
@@ -128,8 +101,20 @@ public class GameParticipation {
 	public void setRemovalReason(String removalReason) {
 		this.removalReason = removalReason;
 	}
-	
-	
-	
-	
+
+	public Integer getPlayersCount() {
+		return playersCount;
+	}
+
+	public void setPlayersCount(Integer playersCount) {
+		this.playersCount = playersCount;
+	}
+
+	public LocalDateTime getJoinedAt() {
+		return joinedAt;
+	}
+
+	public void setJoinedAt(LocalDateTime joinedAt) {
+		this.joinedAt = joinedAt;
+	}
 }

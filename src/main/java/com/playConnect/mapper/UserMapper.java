@@ -1,6 +1,7 @@
 package com.playConnect.mapper;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
 import com.playConnect.game.dto.CreateGameRequest;
@@ -16,6 +17,14 @@ public interface UserMapper {
 	User dtoToEntity(RegisterRequest request);
 	RegisterRequest entityToDto(User userss);
 	
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "status", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "hostCancelReason", ignore = true)
+	@Mapping(target = "distance", ignore = true)
+	@Mapping(target = "winnerId", ignore = true)
 	Game gameDtoToEntity(CreateGameRequest request);
+
 	CreateGameRequest gameEntityToDto(Game game);
 }

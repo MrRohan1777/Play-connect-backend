@@ -1,12 +1,11 @@
 package com.playConnect.game.entity;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,47 +17,50 @@ import jakarta.persistence.Transient;
 @Entity
 @Table(indexes = {
 		@Index(name = "idx_games_sport", columnList = "sport"),
-		@Index(name = "idx_games_start", columnList = "date,time"),
-		@Index(name = "idx_games_arena_id", columnList = "arenaId")
+		@Index(name = "idx_games_start_time", columnList = "startTime"),
+		@Index(name = "idx_games_arena_id", columnList = "arenaId"),
+		@Index(name = "idx_games_created_by", columnList = "createdBy"),
+		@Index(name = "idx_games_winner_id", columnList = "winnerId")
 })
 public class Game {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private Long id;
 
-    private Long hostId;
+	@Column(name = "created_by", nullable = false)
+	private Long createdBy;
 
-    private Long arenaId;
+	@Column(name = "winner_id")
+	private Long winnerId;
 
-    private String sport;
+	private Long arenaId;
 
-    private Double latitude;
+	private String sport;
 
-    private Double longitude;
+	private Double latitude;
 
-    private LocalDate date;
+	private Double longitude;
 
-    private LocalTime time;
+	@Column(name = "start_time", nullable = false)
+	private LocalDateTime startTime;
 
-    private Integer totalPlayers;
+	private Integer totalPlayers;
 
-    private Integer remainingSpots;
+	private String contactNumber;
 
-    private String contactNumber;
+	private String email;
 
-    private String email;
-    
-    private String status;
-    
-    private Integer cancelBeforeMinutes;
-    
-    private String hostCancelReason;
-    
-    @Transient
-    private String distance;
+	private String status;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+	private Integer cancelBeforeMinutes;
+
+	private String hostCancelReason;
+
+	@Transient
+	private String distance;
+
+	private LocalDateTime createdAt = LocalDateTime.now();
 
 	public Long getId() {
 		return id;
@@ -68,12 +70,20 @@ public class Game {
 		this.id = id;
 	}
 
-	public Long getHostId() {
-		return hostId;
+	public Long getCreatedBy() {
+		return createdBy;
 	}
 
-	public void setHostId(Long hostId) {
-		this.hostId = hostId;
+	public void setCreatedBy(Long createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public Long getWinnerId() {
+		return winnerId;
+	}
+
+	public void setWinnerId(Long winnerId) {
+		this.winnerId = winnerId;
 	}
 
 	public Long getArenaId() {
@@ -108,20 +118,12 @@ public class Game {
 		this.longitude = longitude;
 	}
 
-	public LocalDate getDate() {
-		return date;
+	public LocalDateTime getStartTime() {
+		return startTime;
 	}
 
-	public void setDate(LocalDate date) {
-		this.date = date;
-	}
-
-	public LocalTime getTime() {
-		return time;
-	}
-
-	public void setTime(LocalTime time) {
-		this.time = time;
+	public void setStartTime(LocalDateTime startTime) {
+		this.startTime = startTime;
 	}
 
 	public Integer getTotalPlayers() {
@@ -130,14 +132,6 @@ public class Game {
 
 	public void setTotalPlayers(Integer totalPlayers) {
 		this.totalPlayers = totalPlayers;
-	}
-
-	public Integer getRemainingSpots() {
-		return remainingSpots;
-	}
-
-	public void setRemainingSpots(Integer remainingSpots) {
-		this.remainingSpots = remainingSpots;
 	}
 
 	public String getContactNumber() {
@@ -181,9 +175,6 @@ public class Game {
 		this.status = status;
 	}
 
-	/**
-	 * Expose status in JSON as `gameStatus` (not `status`) to avoid confusion with participation status.
-	 */
 	@JsonProperty("gameStatus")
 	public String getGameStatus() {
 		return status;
@@ -214,10 +205,4 @@ public class Game {
 	public void setHostCancelReason(String hostCancelReason) {
 		this.hostCancelReason = hostCancelReason;
 	}
-	
-	
-	
-	
-
-    
 }

@@ -8,7 +8,7 @@ import javax.annotation.processing.Generated;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-04-10T15:26:57+0530",
+    date = "2026-04-11T09:49:36+0530",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 17.0.18 (Oracle Corporation)"
 )
 public class UserMapperImpl implements UserMapper {
@@ -57,10 +57,8 @@ public class UserMapperImpl implements UserMapper {
         game.setSport( request.getSport() );
         game.setLatitude( request.getLatitude() );
         game.setLongitude( request.getLongitude() );
-        game.setDate( request.getDate() );
-        game.setTime( request.getTime() );
+        game.setStartTime( request.getStartTime() );
         game.setTotalPlayers( request.getTotalPlayers() );
-        game.setRemainingSpots( request.getRemainingSpots() );
         game.setContactNumber( request.getContactNumber() );
         game.setEmail( request.getEmail() );
         game.setCancelBeforeMinutes( request.getCancelBeforeMinutes() );
@@ -80,10 +78,8 @@ public class UserMapperImpl implements UserMapper {
         createGameRequest.setArenaId( game.getArenaId() );
         createGameRequest.setLatitude( game.getLatitude() );
         createGameRequest.setLongitude( game.getLongitude() );
-        createGameRequest.setDate( game.getDate() );
-        createGameRequest.setTime( game.getTime() );
+        createGameRequest.setStartTime( game.getStartTime() );
         createGameRequest.setTotalPlayers( game.getTotalPlayers() );
-        createGameRequest.setRemainingSpots( game.getRemainingSpots() );
         createGameRequest.setContactNumber( game.getContactNumber() );
         createGameRequest.setEmail( game.getEmail() );
         createGameRequest.setCancelBeforeMinutes( game.getCancelBeforeMinutes() );

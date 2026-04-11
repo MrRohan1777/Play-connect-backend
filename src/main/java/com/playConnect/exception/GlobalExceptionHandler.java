@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.playConnect.Response.ApiResponse;
@@ -16,88 +15,72 @@ import com.playConnect.utilities.AppConstants;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Map<String, String> handleValidationExceptions(
-            MethodArgumentNotValidException ex) {
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationExceptions(
+			MethodArgumentNotValidException ex) {
 
-        Map<String, String> errors = new HashMap<>();
+		Map<String, String> errors = new HashMap<>();
+		ex.getBindingResult().getFieldErrors()
+				.forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
-        ex.getBindingResult().getFieldErrors()
-                .forEach(error ->
-                        errors.put(error.getField(), error.getDefaultMessage())
-                );
+		ApiResponse<Map<String, String>> response = new ApiResponse<>();
+		response.setMessage("Validation failed");
+		response.setData(errors);
+		response.setStatus(AppConstants.FAILED);
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+	}
 
-        return errors;
-    }
-    
-    @ExceptionHandler(RegistrationFailedException.class)
-    public ResponseEntity<ApiResponse<Object>> handleRegistrationFailed(
-            RegistrationFailedException ex) {
+	@ExceptionHandler(BadRequestException.class)
+	public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
+		return fail(HttpStatus.BAD_REQUEST, ex.getMessage());
+	}
 
-        ApiResponse<Object> response = new ApiResponse<>();
-        response.setMessage(ex.getMessage());
- 		response.setData(null);
- 		response.setStatus(AppConstants.FAILED);
+	@ExceptionHandler(UnauthorizedException.class)
+	public ResponseEntity<ApiResponse<Object>> handleUnauthorized(UnauthorizedException ex) {
+		return fail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+	}
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)  // 500
-                .body(response);
-    }
+	@ExceptionHandler(ForbiddenException.class)
+	public ResponseEntity<ApiResponse<Object>> handleForbidden(ForbiddenException ex) {
+		return fail(HttpStatus.FORBIDDEN, ex.getMessage());
+	}
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponse<Object>> handleGeneric(
-            RuntimeException ex) {
+	@ExceptionHandler(ConflictException.class)
+	public ResponseEntity<ApiResponse<Object>> handleConflict(ConflictException ex) {
+		return fail(HttpStatus.CONFLICT, ex.getMessage());
+	}
 
-    	ApiResponse<Object> response = new ApiResponse<>();
- 		response.setMessage(ex.getMessage());
- 		response.setData(null);
- 		response.setStatus(AppConstants.FAILED);
+	@ExceptionHandler(RegistrationFailedException.class)
+	public ResponseEntity<ApiResponse<Object>> handleRegistrationFailed(RegistrationFailedException ex) {
+		return fail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+	}
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
-    }
-    
-    @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<ApiResponse<Object>> handleEmailExists(
-            EmailAlreadyExistsException ex) {
+	@ExceptionHandler(EmailAlreadyExistsException.class)
+	public ResponseEntity<ApiResponse<Object>> handleEmailExists(EmailAlreadyExistsException ex) {
+		return fail(HttpStatus.CONFLICT, ex.getMessage());
+	}
 
-    	ApiResponse<Object> response = new ApiResponse<>();
-    	response.setMessage(ex.getMessage());
- 		response.setData(null);
- 		response.setStatus(AppConstants.FAILED);
+	@ExceptionHandler(InvalidUsernamePasswordException.class)
+	public ResponseEntity<ApiResponse<Object>> handleInvalidUserNamePassword(
+			InvalidUsernamePasswordException ex) {
+		return fail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+	}
 
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)   // 409
-                .body(response);
-    }
-    
-    @ExceptionHandler(InvalidUsernamePasswordException.class)
-    public ResponseEntity<ApiResponse<Object>> handleInvalidUserNamePassword(
-            InvalidUsernamePasswordException ex) {
+	@ExceptionHandler(ResourceNotFoundException.class)
+	public ResponseEntity<ApiResponse<Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+		return fail(HttpStatus.NOT_FOUND, ex.getMessage());
+	}
 
-    	ApiResponse<Object> response = new ApiResponse<>();
-    	response.setMessage(ex.getMessage());
- 		response.setData(null);
- 		response.setStatus(AppConstants.FAILED);
+	@ExceptionHandler(RuntimeException.class)
+	public ResponseEntity<ApiResponse<Object>> handleUnexpected(RuntimeException ex) {
+		return fail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+	}
 
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)   // 401
-                .body(response);
-    }
-    
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Object>> handleResourceNotFound(
-    		ResourceNotFoundException ex) {
-
-    	ApiResponse<Object> response = new ApiResponse<>();
-    	response.setMessage(ex.getMessage());
- 		response.setData(null);
- 		response.setStatus(AppConstants.FAILED);
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)   // 401
-                .body(response);
-    }
+	private ResponseEntity<ApiResponse<Object>> fail(HttpStatus status, String message) {
+		ApiResponse<Object> response = new ApiResponse<>();
+		response.setMessage(message);
+		response.setData(null);
+		response.setStatus(AppConstants.FAILED);
+		return ResponseEntity.status(status).body(response);
+	}
 }

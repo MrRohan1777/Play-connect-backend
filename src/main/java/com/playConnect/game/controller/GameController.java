@@ -3,7 +3,6 @@ package com.playConnect.game.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,13 +13,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.playConnect.Response.ApiResponse;
+import com.playConnect.exception.BadRequestException;
 import com.playConnect.game.dto.CreateGameRequest;
 import com.playConnect.game.dto.GameListResponse;
 import com.playConnect.game.entity.Game;
 import com.playConnect.game.service.GameService;
 import com.playConnect.utilities.AppConstants;
 
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/games")
 public class GameController {
@@ -52,10 +51,10 @@ public class GameController {
 
         GameListResponse gameListResponse;
         if (arenaId != null) {
-            gameListResponse = gameService.getGamesByArena(arenaId);
+            gameListResponse = gameService.getGamesByArena(arenaId, lat, lng);
         } else {
             if (lat == null || lng == null || radius == null) {
-                throw new RuntimeException("lat, lng and radius are required when arenaId is not provided");
+                throw new BadRequestException("lat, lng and radius are required when arenaId is not provided");
             }
             gameListResponse = gameService.getNearbyGames(lat, lng, radius, sport);
         }

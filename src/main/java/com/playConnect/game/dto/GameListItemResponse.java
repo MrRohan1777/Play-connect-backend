@@ -1,8 +1,6 @@
 package com.playConnect.game.dto;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 import com.playConnect.game.entity.Game;
 
@@ -12,8 +10,7 @@ public class GameListItemResponse {
 	private String sport;
 	private Double latitude;
 	private Double longitude;
-	private LocalDate date;
-	private LocalTime time;
+	private LocalDateTime startTime;
 	private Integer totalSlots;
 	private Integer slotsLeft;
 	private Double distanceKm;
@@ -26,8 +23,7 @@ public class GameListItemResponse {
 		this.sport = game.getSport();
 		this.latitude = game.getLatitude();
 		this.longitude = game.getLongitude();
-		this.date = game.getDate();
-		this.time = game.getTime();
+		this.startTime = game.getStartTime();
 		this.totalSlots = game.getTotalPlayers();
 		this.slotsLeft = slotsLeft;
 		this.distanceKm = distanceKm;
@@ -55,12 +51,8 @@ public class GameListItemResponse {
 		return longitude;
 	}
 
-	public LocalDate getDate() {
-		return date;
-	}
-
-	public LocalTime getTime() {
-		return time;
+	public LocalDateTime getStartTime() {
+		return startTime;
 	}
 
 	public Integer getTotalSlots() {

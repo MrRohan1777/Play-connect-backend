@@ -7,16 +7,25 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.playConnect.arena.entity.Arena;
+import com.playConnect.arena.repository.ArenaRepository;
 import com.playConnect.game.dto.CreateGameRequest;
 import com.playConnect.game.dto.GameListItemResponse;
 import com.playConnect.game.dto.GameListResponse;
 import com.playConnect.game.entity.Game;
-import com.playConnect.game.entity.GameParticipation;
-import com.playConnect.game.repository.GameParticipationRepository;
+import com.playConnect.game.entity.GamePlayer;
+import com.playConnect.exception.BadRequestException;
+import com.playConnect.exception.ConflictException;
+import com.playConnect.exception.ForbiddenException;
+import com.playConnect.exception.ResourceNotFoundException;
+import com.playConnect.exception.UnauthorizedException;
+import com.playConnect.game.repository.GamePlayerRepository;
 import com.playConnect.game.repository.GameRepository;
 import com.playConnect.security.securityConfig.JwtUtil;
+import com.playConnect.user.repository.UserRepository;
 import com.playConnect.utilities.AppConstants;
 
 import jakarta.transaction.Transactional;
@@ -29,28 +38,37 @@ public class GameService {
 	@Autowired
 	private JwtUtil jwtUtil;
 	@Autowired
-	private GameParticipationRepository gameParticipationRepository;
+	private GamePlayerRepository gamePlayerRepository;
+	@Autowired
+	private UserRepository userRepository;
+	@Autowired
+	private ArenaRepository arenaRepository;
+
+	@Value("${app.game.arena-location-tolerance-km:1.0}")
+	private double arenaLocationToleranceKm;
 
 	public Game createGame(String token, CreateGameRequest request) {
 		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
 		if (request.getTotalPlayers() == null || request.getTotalPlayers() <= 0) {
-			throw new RuntimeException("totalPlayers must be greater than 0");
+			throw new BadRequestException("totalPlayers must be greater than 0");
 		}
-		LocalDateTime startTime = LocalDateTime.of(request.getDate(), request.getTime());
-		if (!startTime.isAfter(LocalDateTime.now())) {
-			throw new RuntimeException("Cannot create a game in the past");
+		if (request.getStartTime() == null) {
+			throw new BadRequestException("startTime is required");
+		}
+		if (!request.getStartTime().isAfter(LocalDateTime.now())) {
+			throw new BadRequestException("Cannot create a game in the past");
 		}
 
+		validateArenaForCreate(request);
+
 		Game game = new Game();
-		game.setHostId(userId);
+		game.setCreatedBy(userId);
 		game.setSport(request.getSport());
 		game.setArenaId(request.getArenaId());
 		game.setLatitude(request.getLatitude());
 		game.setLongitude(request.getLongitude());
-		game.setDate(request.getDate());
-		game.setTime(request.getTime());
+		game.setStartTime(request.getStartTime());
 		game.setTotalPlayers(request.getTotalPlayers());
-		game.setRemainingSpots(request.getTotalPlayers());
 		game.setContactNumber(request.getContactNumber());
 		game.setEmail(request.getEmail());
 		game.setCancelBeforeMinutes(request.getCancelBeforeMinutes());
@@ -64,18 +82,23 @@ public class GameService {
 		return new GameListResponse(games);
 	}
 
-	public GameListResponse getGamesByArena(Long arenaId) {
+	public GameListResponse getGamesByArena(Long arenaId, Double userLat, Double userLng) {
 		List<Game> games = gameRepository.findUpcomingActiveGamesByArenaId(arenaId);
 		Map<Long, Long> joinedCounts = getJoinedCountMap(games);
+		boolean hasUserPosition = userLat != null && userLng != null;
 		List<GameListItemResponse> items = games.stream()
 				.map(game -> {
 					long joined = joinedCounts.getOrDefault(game.getId(), 0L);
 					int slotsLeft = game.getTotalPlayers() - (int) joined;
 					double fillRatio = game.getTotalPlayers() == 0 ? 0.0 : (double) joined / game.getTotalPlayers();
-					return new GameListItemResponse(game, 0.0, slotsLeft, fillRatio);
+					double distanceKm = distanceKmToGame(userLat, userLng, game);
+					return new GameListItemResponse(game, distanceKm, slotsLeft, fillRatio);
 				})
 				.filter(item -> item.getSlotsLeft() > 0)
-				.sorted(Comparator.comparing(GameListItemResponse::getCreatedAt))
+				.sorted(hasUserPosition
+						? Comparator.comparing(GameListItemResponse::getDistanceKm)
+								.thenComparing(GameListItemResponse::getStartTime)
+						: Comparator.comparing(GameListItemResponse::getStartTime))
 				.toList();
 		return new GameListResponse(items);
 	}
@@ -90,38 +113,39 @@ public class GameService {
 	@Transactional
 	public Long joinGame(Long gameId, String token) {
 		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
-		Game game = gameRepository.findById(gameId).orElseThrow(() -> new RuntimeException("Game not found"));
+		Game game = gameRepository.findById(gameId)
+				.orElseThrow(() -> new ResourceNotFoundException("Game not found"));
 		if (!isUpcomingGame(game)) {
-			throw new RuntimeException("Cannot join past games");
+			throw new BadRequestException("Cannot join past games");
 		}
-		if (game.getHostId().equals(userId)) {
-			throw new RuntimeException("Host cannot join their own game");
+		if (game.getCreatedBy().equals(userId)) {
+			throw new ForbiddenException("Cannot join a game you created");
 		}
-		if (gameParticipationRepository.existsByGameIdAndLeaderIdAndStatus(gameId, userId, AppConstants.JOINED)) {
-			throw new RuntimeException("Cannot join the same game twice");
+		if (gamePlayerRepository.existsByGameIdAndUser_IdAndStatus(gameId, userId, AppConstants.JOINED)) {
+			throw new ConflictException("Cannot join the same game twice");
 		}
-		long joinedCount = gameParticipationRepository.countByGameIdAndStatus(gameId, AppConstants.JOINED);
+		long joinedCount = gamePlayerRepository.countByGameIdAndStatus(gameId, AppConstants.JOINED);
 		int slotsLeft = game.getTotalPlayers() - (int) joinedCount;
 		if (slotsLeft <= 0) {
-			throw new RuntimeException("Game is full");
+			throw new ConflictException("Game is full");
 		}
-		GameParticipation join = new GameParticipation();
+		GamePlayer join = new GamePlayer();
 		join.setGameId(gameId);
-		join.setLeaderId(userId);
+		join.setUser(userRepository.getReferenceById(userId));
 		join.setPlayersCount(1);
 		join.setStatus(AppConstants.JOINED);
-		GameParticipation saved = gameParticipationRepository.save(join);
+		GamePlayer saved = gamePlayerRepository.save(join);
 		return saved.getId();
 	}
 
 	@Transactional
 	public void leaveGame(Long gameId, String token) {
 		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
-		GameParticipation participation = gameParticipationRepository
-				.findByGameIdAndLeaderIdAndStatus(gameId, userId, AppConstants.JOINED)
-				.orElseThrow(() -> new RuntimeException("Join record not found"));
+		GamePlayer participation = gamePlayerRepository
+				.findByGameIdAndUser_IdAndStatus(gameId, userId, AppConstants.JOINED)
+				.orElseThrow(() -> new ResourceNotFoundException("Join record not found"));
 		participation.setStatus(AppConstants.LEFT);
-		gameParticipationRepository.save(participation);
+		gamePlayerRepository.save(participation);
 	}
 
 	private List<GameListItemResponse> fetchAndFilterGames(double lat, double lng, double radius, String sport) {
@@ -140,27 +164,52 @@ public class GameService {
 			return joinedCounts;
 		}
 		List<Long> gameIds = games.stream().map(Game::getId).toList();
-		for (Object[] row : gameParticipationRepository.countJoinedByGameIds(gameIds, AppConstants.JOINED)) {
+		for (Object[] row : gamePlayerRepository.countJoinedByGameIds(gameIds, AppConstants.JOINED)) {
 			joinedCounts.put((Long) row[0], (Long) row[1]);
 		}
 		return joinedCounts;
 	}
 
+	private double distanceKmToGame(Double userLat, Double userLng, Game game) {
+		if (userLat == null || userLng == null || game.getLatitude() == null || game.getLongitude() == null) {
+			return 0.0;
+		}
+		return round2(haversine(userLat, userLng, game.getLatitude(), game.getLongitude()));
+	}
+
 	private GameListItemResponse toListItem(Game game, double lat, double lng, long joinedCount) {
 		int slotsLeft = game.getTotalPlayers() - (int) joinedCount;
-		double distance = round2(haversine(lat, lng, game.getLatitude(), game.getLongitude()));
+		double distance = distanceKmToGame(lat, lng, game);
 		double fillRatio = game.getTotalPlayers() == 0 ? 0.0 : (double) joinedCount / game.getTotalPlayers();
 		return new GameListItemResponse(game, distance, slotsLeft, fillRatio);
 	}
 
 	private boolean isUpcomingGame(Game game) {
 		return AppConstants.ACTIVE.equalsIgnoreCase(game.getStatus())
-				&& LocalDateTime.of(game.getDate(), game.getTime()).isAfter(LocalDateTime.now());
+				&& game.getStartTime().isAfter(LocalDateTime.now());
+	}
+
+	private void validateArenaForCreate(CreateGameRequest request) {
+		if (request.getArenaId() == null) {
+			return;
+		}
+		Arena arena = arenaRepository.findById(request.getArenaId())
+				.orElseThrow(() -> new ResourceNotFoundException("Arena not found"));
+		Double gLat = request.getLatitude();
+		Double gLng = request.getLongitude();
+		if (gLat != null && gLng != null && arena.getLatitude() != null && arena.getLongitude() != null) {
+			double km = round2(haversine(gLat, gLng, arena.getLatitude(), arena.getLongitude()));
+			if (km > arenaLocationToleranceKm) {
+				throw new BadRequestException(String.format(
+						"Game location must be within %.1f km of the arena (distance: %.2f km)",
+						arenaLocationToleranceKm, km));
+			}
+		}
 	}
 
 	private String extractBearerToken(String token) {
 		if (token == null || token.isBlank()) {
-			throw new RuntimeException("Missing authorization token");
+			throw new UnauthorizedException("Missing authorization token");
 		}
 		if (token.startsWith("Bearer ")) {
 			return token.substring(7);

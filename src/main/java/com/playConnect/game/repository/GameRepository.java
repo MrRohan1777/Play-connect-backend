@@ -1,9 +1,11 @@
 package com.playConnect.game.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.playConnect.game.entity.Game;
@@ -15,7 +17,7 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 			    SELECT g
 			    FROM Game g
 			    WHERE g.status = 'ACTIVE'
-			    AND (g.date > CURRENT_DATE OR (g.date = CURRENT_DATE AND g.time > CURRENT_TIME))
+			    AND g.startTime > CURRENT_TIMESTAMP
 			""")
 	List<Game> findUpcomingActiveGames();
 
@@ -24,8 +26,16 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 			    FROM Game g
 			    WHERE g.status = 'ACTIVE'
 			    AND g.arenaId = :arenaId
-			    AND (g.date > CURRENT_DATE OR (g.date = CURRENT_DATE AND g.time > CURRENT_TIME))
+			    AND g.startTime > CURRENT_TIMESTAMP
 			""")
 	List<Game> findUpcomingActiveGamesByArenaId(Long arenaId);
 
+	long countByCreatedBy(Long createdBy);
+
+	@Query("""
+			SELECT COUNT(g) FROM Game g
+			WHERE g.winnerId = :userId
+			AND g.startTime >= :since
+			""")
+	long countWinsForUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 }
