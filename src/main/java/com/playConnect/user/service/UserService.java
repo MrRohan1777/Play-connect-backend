@@ -11,6 +11,7 @@ import com.playConnect.mapper.UserMapper;
 import com.playConnect.security.securityConfig.JwtUtil;
 import com.playConnect.user.dto.RegisterRequest;
 import com.playConnect.user.dto.UpdateLocationRequest;
+import com.playConnect.user.dto.UserProfileResponse;
 import com.playConnect.user.entity.User;
 import com.playConnect.user.repository.UserRepository;
 
@@ -41,6 +42,12 @@ public class UserService {
 		}
 
 		return user.getId();
+	}
+
+	public UserProfileResponse getUserProfile(Long userId) {
+		User user = playerRepository.findById(userId)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		return UserProfileResponse.fromEntity(user);
 	}
 
 	public void updateLocation(String token, UpdateLocationRequest request) {

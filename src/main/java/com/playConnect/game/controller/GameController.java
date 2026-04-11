@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.playConnect.Response.ApiResponse;
 import com.playConnect.exception.BadRequestException;
 import com.playConnect.game.dto.CreateGameRequest;
+import com.playConnect.game.dto.CreateGameResponse;
 import com.playConnect.game.dto.GameListResponse;
-import com.playConnect.game.entity.Game;
 import com.playConnect.game.service.GameService;
 import com.playConnect.utilities.AppConstants;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/games")
@@ -27,18 +29,16 @@ public class GameController {
     @Autowired
     private GameService gameService;
 
+    /**
+     * Host identity comes from JWT only ({@code Authorization}), never from the request body.
+     */
     @PostMapping
-    public ResponseEntity<ApiResponse<Game>> createGame(
+    public ResponseEntity<CreateGameResponse> createGame(
             @RequestHeader("Authorization") String token,
-            @RequestBody CreateGameRequest request) {
+            @Valid @RequestBody CreateGameRequest request) {
 
-        Game game = gameService.createGame(token, request);
-        ApiResponse<Game> response = new ApiResponse<>();
-        response.setMessage("Game created successfully");
-        response.setData(game);
-        response.setStatus(AppConstants.SUCCESS);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        CreateGameResponse body = gameService.createGame(token, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
     @GetMapping

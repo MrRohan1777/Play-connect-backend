@@ -8,7 +8,7 @@ import javax.annotation.processing.Generated;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-04-11T09:49:36+0530",
+    date = "2026-04-11T14:48:14+0530",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 17.0.18 (Oracle Corporation)"
 )
 public class UserMapperImpl implements UserMapper {
@@ -59,9 +59,6 @@ public class UserMapperImpl implements UserMapper {
         game.setLongitude( request.getLongitude() );
         game.setStartTime( request.getStartTime() );
         game.setTotalPlayers( request.getTotalPlayers() );
-        game.setContactNumber( request.getContactNumber() );
-        game.setEmail( request.getEmail() );
-        game.setCancelBeforeMinutes( request.getCancelBeforeMinutes() );
 
         return game;
     }
@@ -80,9 +77,6 @@ public class UserMapperImpl implements UserMapper {
         createGameRequest.setLongitude( game.getLongitude() );
         createGameRequest.setStartTime( game.getStartTime() );
         createGameRequest.setTotalPlayers( game.getTotalPlayers() );
-        createGameRequest.setContactNumber( game.getContactNumber() );
-        createGameRequest.setEmail( game.getEmail() );
-        createGameRequest.setCancelBeforeMinutes( game.getCancelBeforeMinutes() );
 
         return createGameRequest;
     }

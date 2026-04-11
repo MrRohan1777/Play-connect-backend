@@ -4,6 +4,8 @@ com\playConnect\exception\UnauthorizedException.class
 com\playConnect\exception\ConflictException.class
 com\playConnect\arena\dto\ArenaResponse.class
 com\playConnect\arena\repository\ArenaRepository.class
+com\playConnect\user\controller\UsersController.class
+com\playConnect\user\dto\UserProfileResponse.class
 com\playConnect\arena\dto\ArenaDetailResponse.class
 com\playConnect\profile\controller\ProfileController.class
 com\playConnect\game\dto\GameListResponse.class
@@ -12,6 +14,7 @@ com\playConnect\exception\ForbiddenException.class
 com\playConnect\profile\dto\ProfileResponse.class
 com\playConnect\game\dto\GameListItemResponse.class
 com\playConnect\arena\dto\ArenaPageResponse.class
+com\playConnect\game\dto\CreateGameResponse.class
 com\playConnect\arena\controller\ArenaController.class
 com\playConnect\game\entity\GamePlayer.class
 com\playConnect\arena\service\ArenaService.class

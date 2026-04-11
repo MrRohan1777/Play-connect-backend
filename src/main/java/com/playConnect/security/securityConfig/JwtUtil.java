@@ -33,21 +33,31 @@ public class JwtUtil {
                 .compact();
     }
     
+	/**
+	 * Strips optional {@code Bearer } prefix; returns raw JWT or null if blank.
+	 */
+	public String resolveToken(String authorizationHeader) {
+		if (authorizationHeader == null || authorizationHeader.isBlank()) {
+			return null;
+		}
+		String t = authorizationHeader.trim();
+		if (t.startsWith("Bearer ")) {
+			return t.substring(7).trim();
+		}
+		return t;
+	}
+
     public Long extractUserId(String token) {
-    	
-    	String cleanToken = "";
-    	
-//    	if (token != null && token.startsWith("Bearer ")) {
-//    		cleanToken = token.substring(7);
-//    	}
-
-
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSignKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
 
+        Object v = claims.get("userId");
+        if (v instanceof Number n) {
+            return n.longValue();
+        }
         return claims.get("userId", Long.class);
     }
     

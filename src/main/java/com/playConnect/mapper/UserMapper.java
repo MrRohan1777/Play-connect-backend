@@ -24,6 +24,9 @@ public interface UserMapper {
 	@Mapping(target = "hostCancelReason", ignore = true)
 	@Mapping(target = "distance", ignore = true)
 	@Mapping(target = "winnerId", ignore = true)
+	@Mapping(target = "contactNumber", ignore = true)
+	@Mapping(target = "email", ignore = true)
+	@Mapping(target = "cancelBeforeMinutes", ignore = true)
 	Game gameDtoToEntity(CreateGameRequest request);
 
 	CreateGameRequest gameEntityToDto(Game game);

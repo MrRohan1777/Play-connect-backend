@@ -46,6 +46,11 @@ public class User {
 
     private Double longitude;
 
+    private String city;
+
+    @Column(name = "profile_image")
+    private String profileImage;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -105,6 +110,22 @@ public class User {
 
 	public void setLongitude(Double longitude) {
 		this.longitude = longitude;
+	}
+
+	public String getCity() {
+		return city;
+	}
+
+	public void setCity(String city) {
+		this.city = city;
+	}
+
+	public String getProfileImage() {
+		return profileImage;
+	}
+
+	public void setProfileImage(String profileImage) {
+		this.profileImage = profileImage;
 	}
 
 	public LocalDateTime getCreatedAt() {

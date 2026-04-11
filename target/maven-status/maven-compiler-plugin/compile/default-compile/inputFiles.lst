@@ -3,6 +3,7 @@ D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\pla
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\security\securityConfig\JwtUtil.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\GameListItemResponse.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\JoinedGameResponse.java
+D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\user\dto\UserProfileResponse.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\RemovePlayerRequest.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\security\Test.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\security\passwordreset\entity\PasswordResetToken.java
@@ -29,6 +30,8 @@ D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\pla
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\security\passwordreset\service\PasswordResetService.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\MyGameItemResponse.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\security\dto\LoginRequest.java
+D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\CreateGameResponse.java
+D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\user\controller\UsersController.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\corsConfig\CorsConfig.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\arena\controller\ArenaController.java
 D:\personal\WorkSpace\Play-connect-ui\Play-connect-backend\src\main\java\com\playConnect\game\dto\NearbyGamesResponse.java

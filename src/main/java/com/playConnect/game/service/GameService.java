@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.playConnect.arena.entity.Arena;
 import com.playConnect.arena.repository.ArenaRepository;
 import com.playConnect.game.dto.CreateGameRequest;
+import com.playConnect.game.dto.CreateGameResponse;
 import com.playConnect.game.dto.GameListItemResponse;
 import com.playConnect.game.dto.GameListResponse;
 import com.playConnect.game.entity.Game;
@@ -47,33 +48,39 @@ public class GameService {
 	@Value("${app.game.arena-location-tolerance-km:1.0}")
 	private double arenaLocationToleranceKm;
 
-	public Game createGame(String token, CreateGameRequest request) {
+	@Transactional
+	public CreateGameResponse createGame(String token, CreateGameRequest request) {
 		Long userId = jwtUtil.extractUserId(extractBearerToken(token));
-		if (request.getTotalPlayers() == null || request.getTotalPlayers() <= 0) {
-			throw new BadRequestException("totalPlayers must be greater than 0");
-		}
-		if (request.getStartTime() == null) {
-			throw new BadRequestException("startTime is required");
-		}
-		if (!request.getStartTime().isAfter(LocalDateTime.now())) {
-			throw new BadRequestException("Cannot create a game in the past");
-		}
 
-		validateArenaForCreate(request);
+		if (request.getSport() == null || request.getSport().isBlank()) {
+			throw new BadRequestException("sport is required");
+		}
+		if (request.getStartTime() == null || !request.getStartTime().isAfter(LocalDateTime.now())) {
+			throw new BadRequestException("Cannot create past game");
+		}
+		if (request.getTotalPlayers() == null || request.getTotalPlayers() <= 1) {
+			throw new BadRequestException("totalPlayers must be greater than 1");
+		}
 
 		Game game = new Game();
 		game.setCreatedBy(userId);
-		game.setSport(request.getSport());
-		game.setArenaId(request.getArenaId());
-		game.setLatitude(request.getLatitude());
-		game.setLongitude(request.getLongitude());
+		game.setSport(request.getSport().trim());
 		game.setStartTime(request.getStartTime());
 		game.setTotalPlayers(request.getTotalPlayers());
-		game.setContactNumber(request.getContactNumber());
-		game.setEmail(request.getEmail());
-		game.setCancelBeforeMinutes(request.getCancelBeforeMinutes());
 		game.setStatus(AppConstants.ACTIVE);
-		return gameRepository.save(game);
+
+		resolveLocationForCreate(request, game);
+
+		Game saved = gameRepository.save(game);
+
+		GamePlayer hostJoin = new GamePlayer();
+		hostJoin.setGameId(saved.getId());
+		hostJoin.setUser(userRepository.getReferenceById(userId));
+		hostJoin.setPlayersCount(1);
+		hostJoin.setStatus(AppConstants.JOINED);
+		gamePlayerRepository.save(hostJoin);
+
+		return new CreateGameResponse("Game created", saved.getId());
 	}
 
 	public GameListResponse getNearbyGames(double lat, double lng, double radius, String sport) {
@@ -189,22 +196,41 @@ public class GameService {
 				&& game.getStartTime().isAfter(LocalDateTime.now());
 	}
 
-	private void validateArenaForCreate(CreateGameRequest request) {
-		if (request.getArenaId() == null) {
-			return;
-		}
-		Arena arena = arenaRepository.findById(request.getArenaId())
-				.orElseThrow(() -> new ResourceNotFoundException("Arena not found"));
-		Double gLat = request.getLatitude();
-		Double gLng = request.getLongitude();
-		if (gLat != null && gLng != null && arena.getLatitude() != null && arena.getLongitude() != null) {
-			double km = round2(haversine(gLat, gLng, arena.getLatitude(), arena.getLongitude()));
-			if (km > arenaLocationToleranceKm) {
-				throw new BadRequestException(String.format(
-						"Game location must be within %.1f km of the arena (distance: %.2f km)",
-						arenaLocationToleranceKm, km));
+	/**
+	 * Location required: either map pin (lat/lng) or arena (uses arena coordinates when pin omitted).
+	 */
+	private void resolveLocationForCreate(CreateGameRequest request, Game game) {
+		Double lat = request.getLatitude();
+		Double lng = request.getLongitude();
+		Long arenaId = request.getArenaId();
+
+		if (arenaId != null) {
+			Arena arena = arenaRepository.findById(arenaId)
+					.orElseThrow(() -> new ResourceNotFoundException("Arena not found"));
+			game.setArenaId(arenaId);
+			if (lat != null && lng != null) {
+				if (arena.getLatitude() != null && arena.getLongitude() != null) {
+					double km = round2(haversine(lat, lng, arena.getLatitude(), arena.getLongitude()));
+					if (km > arenaLocationToleranceKm) {
+						throw new BadRequestException(String.format(
+								"Game location must be within %.1f km of the arena (distance: %.2f km)",
+								arenaLocationToleranceKm, km));
+					}
+				}
+			} else {
+				lat = arena.getLatitude();
+				lng = arena.getLongitude();
 			}
+		} else {
+			game.setArenaId(null);
 		}
+
+		if (lat == null || lng == null) {
+			throw new BadRequestException("Location is required (arena or map coordinates)");
+		}
+
+		game.setLatitude(lat);
+		game.setLongitude(lng);
 	}
 
 	private String extractBearerToken(String token) {

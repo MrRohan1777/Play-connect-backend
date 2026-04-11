@@ -40,4 +40,14 @@ public interface GamePlayerRepository extends JpaRepository<GamePlayer, Long> {
 			AND gp2.status IN :metStatuses
 			""")
 	long sumPlayersMet(@Param("userId") Long userId, @Param("metStatuses") Collection<String> metStatuses);
+
+	@Query("""
+			SELECT COUNT(DISTINCT gp2.user.id)
+			FROM GamePlayer gp1
+			JOIN GamePlayer gp2 ON gp1.gameId = gp2.gameId
+			WHERE gp1.user.id = :userId
+			AND gp2.user.id <> :userId
+			AND gp1.status = :joinedStatus
+			""")
+	long countDistinctPlayersMet(@Param("userId") Long userId, @Param("joinedStatus") String joinedStatus);
 }

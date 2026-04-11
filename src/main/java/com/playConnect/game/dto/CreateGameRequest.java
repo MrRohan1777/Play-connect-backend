@@ -2,8 +2,14 @@ package com.playConnect.game.dto;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class CreateGameRequest {
 
+	@NotBlank(message = "sport is required")
 	private String sport;
 
 	private Long arenaId;
@@ -12,15 +18,13 @@ public class CreateGameRequest {
 
 	private Double longitude;
 
+	@NotNull(message = "startTime is required")
+	@Future(message = "Cannot create past game")
 	private LocalDateTime startTime;
 
+	@NotNull(message = "totalPlayers is required")
+	@Min(value = 2, message = "totalPlayers must be greater than 1")
 	private Integer totalPlayers;
-
-	private String contactNumber;
-
-	private String email;
-
-	private Integer cancelBeforeMinutes;
 
 	public String getSport() {
 		return sport;
@@ -68,29 +72,5 @@ public class CreateGameRequest {
 
 	public void setTotalPlayers(Integer totalPlayers) {
 		this.totalPlayers = totalPlayers;
-	}
-
-	public String getContactNumber() {
-		return contactNumber;
-	}
-
-	public void setContactNumber(String contactNumber) {
-		this.contactNumber = contactNumber;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
-		this.email = email;
-	}
-
-	public Integer getCancelBeforeMinutes() {
-		return cancelBeforeMinutes;
-	}
-
-	public void setCancelBeforeMinutes(Integer cancelBeforeMinutes) {
-		this.cancelBeforeMinutes = cancelBeforeMinutes;
 	}
 }
