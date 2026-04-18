@@ -24,8 +24,7 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 			        )
 			    ) AS distance
 			    FROM Game g
-			    WHERE g.sport = :sport
-			    AND g.remainingSpots > 0
+			    WHERE g.remainingSpots > 0
 			    AND g.status = 'ACTIVE'
 			    AND (
 			        g.date > CURRENT_DATE
@@ -42,8 +41,7 @@ public interface GameRepository extends JpaRepository<Game, Long> {
 			    ) <= :radius
 			    ORDER BY distance
 			""")
-	List<Object[]> findNearbyGames(@Param("sport") String sport, @Param("lat") double lat, @Param("lng") double lng,
-			@Param("radius") double radius);
+	List<Object[]> findNearbyGames(@Param("lat") double lat, @Param("lng") double lng, @Param("radius") double radius);
 	
 	List<Game> findByHostId(Long hostId);
 

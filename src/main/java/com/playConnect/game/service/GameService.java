@@ -60,9 +60,9 @@ public class GameService {
 		return gameRepository.save(game);
 	}
 
-	public NearbyGamesResponse getNearbyGames(String sport, double lat, double lng, double radius) {
+	public NearbyGamesResponse getNearbyGames(double lat, double lng, double radius) {
 
-		List<Object[]> results = gameRepository.findNearbyGames(sport, lat, lng, radius);
+		List<Object[]> results = gameRepository.findNearbyGames(lat, lng, radius);
 
 		List<Game> games = results.stream().map(row -> {
 			Game game = (Game) row[0];

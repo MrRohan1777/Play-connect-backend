@@ -52,13 +52,12 @@ public class GameController {
     
     @GetMapping("/nearbyGames")
     public ResponseEntity<ApiResponse<NearbyGamesResponse>> getNearbyGames(
-            @RequestParam String sport,
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam double radius) {
 
         NearbyGamesResponse nearByGameresponse =
-                gameService.getNearbyGames(sport, lat, lng, radius);
+                gameService.getNearbyGames(lat, lng, radius);
         ApiResponse<NearbyGamesResponse> response = new ApiResponse<>();
 		response.setMessage("Nearby Games...!");
 		response.setData(nearByGameresponse);
